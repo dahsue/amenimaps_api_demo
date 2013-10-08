@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+   <head>
+		<title>AmeniMaps.com API Demo App - KML feed</title>
+		<meta charset="utf-8" />
+		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+		<meta http-equiv="content-language" content="en" />
+		<meta name="author" content="dany@amenimaps.com" />
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+		<meta name="keywords" content="Amenimaps, Google maps, jQuery" />
+		<meta name="description" content="Amenimaps API KML Feed demo App. Based on Google maps v3 plugin for jQuery and jQuery Mobile" />
+		<link rel="schema.DC" href="http://purl.org/dc/elements/1.1/" />
+		<meta name="DC.title" content="Amenimaps API KML Feed demo App" />
+		<meta name="DC.subject" content="Amenimaps API KML Feed demo App." />
+		<meta name="DC.description" content="Amenimaps API KML Feed demo App. Based on Google maps v3 plugin for jQuery and jQuery Mobile" />
+		<meta name="DC.creator" content="dany@amenimaps.com" />
+		<meta name="DC.language" content="en" />
+		<link type="text/css" rel="stylesheet" href="css/jquery-mobile-1.0/jquery.mobile.css" />
+		<link type="text/css" rel="stylesheet" href="css/mobile.css" />
+		<script type="text/javascript" src="js/modernizr-2.0.6/modernizr.min.js"></script>
+		<script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=false&libraries=places"></script> 
+		<script type="text/javascript" src="js/jquery-1.7.1/jquery.min.js"></script>
+		<script type="text/javascript" src="js/jquery-mobile-1.0/jquery.mobile.min.js"></script>
+		<script type="text/javascript" src="js/jquery.ui-1.8.15/jquery.ui.autocomplete.min.js"></script>
+		<script type="text/javascript" src="js/demo.js"></script>
+		<script type="text/javascript" src="ui/min/jquery.ui.map.min.js"></script>
+		<script type="text/javascript" src="ui/min/jquery.ui.map.services.min.js"></script>
+		<script type="text/javascript" src="ui/jquery.ui.map.extensions.js"></script>
+		<script type="text/javascript" src="ui/min/jquery.ui.map.overlays.min.js"></script>
+		<script type="text/javascript">
+
+			var mapCenter = { 'center': '51.51135999349117,-0.1631641387939453', 'zoom': 13 };  //Assume we are at Trafalgar square until we get our real location
+			var toiletLayerAvailable = 0;
+			var atmLayerAvailable = 0;
+			var bankLayerAvailable = 0;
+			var postofficeLayerAvailable = 0;
+			var myMap;
+                        var myLat = 0;
+                        var myLon = 0;
+			var myName = "your_username";     //You need to provide the name you got after registration at http://amenimaps.com/api
+			var myKey = "your_api_key";      //You need to provide the key you got after registration at http://amenimaps.com/api
+
+			$('#home').live('pageinit', function() {
+				demo.add('home', function() {
+                                        $("#map_canvas_0").height(screen.height/2);
+					myMap = $('#map_canvas_0').gmap({'center': mapCenter.center, 'zoom': mapCenter.zoom, 'disableDefaultUI':true, 'callback': function(map) {
+			                        var myLatLng;
+						var self = this;
+
+                                                if (myLat != 0 && myLon != 0)
+                                                {
+                                                    myLatLng = new google.maps.LatLng(myLat, myLon);
+                                                    self.addMarker({ 'id': 'client', 
+			                                             'position': myLatLng, 
+			                                             'bounds': false,
+	                                                             'icon': 'http://amenimaps.com/markers/person.png'});
+						    map.panTo(myLatLng);
+                                                }
+                                                else
+                                                {
+						self.watchPosition(function(position, status) {
+							if ( status === 'OK' ) {
+			                                        myLat = position.coords.latitude;
+			                                        myLon = position.coords.longitude;
+			                                     
+								var latlng = new google.maps.LatLng(myLat, myLon);
+			                                        myLatLng = latlng;
+								if ( !self.get('markers').client ) {
+									self.addMarker({ 'id': 'client', 
+			                                                                 'position': latlng, 
+			                                                                 'bounds': false,
+			                                                                 'icon': 'http://amenimaps.com/markers/person.png'});
+									map.panTo(latlng);
+								} else {
+									self.get('markers').client.setPosition(latlng);
+									map.panTo(latlng);
+								}
+							}
+						});
+                                                }
+
+					$('#atms').click(function() 
+			                     {
+			                       if ($('#map_canvas_0').gmap('get', 'overlays').toilets)
+			                           $('#map_canvas_0').gmap('get', 'overlays').toilets.setMap(null);
+
+			                       if (atmLayerAvailable)
+                                               {
+			                          myMap = $('#map_canvas_0').gmap('get', 'map');
+                                                  $('#map_canvas_0').gmap('get', 'overlays').atms.setMap(myMap);
+                                               }
+                                               else
+                                               { 
+                                                  //Call amenimaps API get locations of nearest ATMs in KML format and load onto the map
+                                                  self.loadKML('atms', 'http://amenimaps.com/amenimapi.php?amenity=atm&mylat=' + myLat + '&mylon=' + myLon + '&name=' + myName + '&key=' + myKey);
+			                          atmLayerAvailable = 1;
+                                               }
+			                       return false;
+				             });
+
+					$('#toilets').click(function() 
+			                     {
+			                       if ($('#map_canvas_0').gmap('get', 'overlays').atms)
+    			                             $('#map_canvas_0').gmap('get', 'overlays').atms.setMap(null);
+
+			                       if (toiletLayerAvailable)
+                                               {
+			                          myMap = $('#map_canvas_0').gmap('get', 'map');
+                                                  $('#map_canvas_0').gmap('get', 'overlays').toilets.setMap(myMap);
+                                               }
+                                               else
+                                               { 
+                                                  //Call amenimaps API get locations of nearest toilets in KML format and load onto the map
+                                                  self.loadKML('toilets', 'http://amenimaps.com/amenimapi.php?amenity=toilet&mylat=' + myLat + '&mylon=' + myLon + '&name=' + myName + '&key=' + myKey);
+			                          toiletLayerAvailable = 1;
+			                       }
+			                       return false;
+				             });
+
+					}});
+				}).load('home');
+			});
+			
+			$('#home').live('pageshow', function() {
+				demo.add('home', function() { $('#map_canvas_0').gmap('refresh'); }).load('home');
+			});
+			
+			$('#home').live("pagehide", function() {
+				demo.add('home', function() { $('#map_canvas_0').gmap('clearWatch'); }).load('home');
+			});
+
+        </script>
+    </head>
+    <body>
+		<div id="home" data-role="page">
+			<div data-role="header" data-theme="d">
+				<h1><a data-ajax="false" href="http://amenimaps.com">AmeniMaps KML</a></h1>
+			</div>
+			<div data-role="content">
+				<div class="ui-bar-c ui-corner-all ui-shadow" style="padding:1em;">
+					<div id="map_canvas_0"></div>
+				    <div data-role="controlgroup">
+				      <a id="toilets" href="#" data-role="button">Nearest Toilets</a>
+				      <a id="atms" href="#" data-role="button">Nearest ATMs</a>
+				    </div>
+			<div data-role="footer" data-theme="d">
+				<p class="more"><a href="http://amenimaps.com/api" itemprop="url">Discover AmeniMaps APIs</a></p>
+			</div>			
+		</div>
+	</body>
+</html>
